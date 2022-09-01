@@ -135,6 +135,16 @@ impl fmt::Display for Card {
     }
 }
 
+impl Player {
+    fn print_cards(&self) {
+        println!("----- Your Hand -----\n");
+        for card in &self.cards {
+            println!("{}\n", card);
+        }
+        println!("----- Your Hand -----");
+    }
+}
+
 impl Card {
     fn random() -> Card {
         let n = thread_rng().gen_range(0..=5);
@@ -150,8 +160,16 @@ impl Card {
         }
     }
 
+    /// Draw a full hand (2 cards, random)
     fn full_draw() -> Vec<Card> {
-        vec![Card::random(), Card::random()]
+        vec![
+            Card::income(),
+            Card::foreign_aid(),
+            Card::coup(),
+
+            Card::random(), 
+            Card::random(),
+        ]
     }
 
     fn duke() -> Card {
@@ -194,6 +212,31 @@ impl Card {
             counteraction: Counteraction::BlocksAssasination, 
         }
     }
+
+    fn income() -> Card {
+        Card { 
+            character: Character::X, 
+            action: Action::Income, 
+            effect: Effect::Take(1), 
+            counteraction: Counteraction::X, 
+        }
+    }
+    fn foreign_aid() -> Card {
+        Card { 
+            character: Character::X, 
+            action: Action::ForeignAid, 
+            effect: Effect::Take(2), 
+            counteraction: Counteraction::X, 
+        }
+    }
+    fn coup() -> Card {
+        Card { 
+            character: Character::X, 
+            action: Action::Coup, 
+            effect: Effect::Kill(7), 
+            counteraction: Counteraction::X, 
+        }
+    }
 }
 
 impl Game {
@@ -218,5 +261,5 @@ fn main() {
 
     game.add_player(String::from("Nate"), Card::full_draw());
 
-    println!("{}\n\n{}", game.players[0].cards[0], game.players[0].cards[1]);
+    game.players[0].print_cards();
 }
