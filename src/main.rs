@@ -1,8 +1,11 @@
 use rand::prelude::*;
-use std::fmt;
+use std::{fmt, collections::HashMap};
 
 struct Game {
     players: Vec<Player>,
+    /// Use the Card to find out how much are remaining
+    deck: HashMap<Card, usize>,
+    discard_pile: Vec<Card>,
 }
 
 struct Player {
@@ -18,6 +21,7 @@ struct Play {
     target: Box<Player>,
 }
 
+#[derive(PartialEq, Eq, Hash)]
 struct Card {
     character: Character,
     action: Action,
@@ -25,6 +29,7 @@ struct Card {
     counteraction: Counteraction,
 }
 
+#[derive(PartialEq, Eq, Hash)]
 enum Character {
     X,
     Duke,
@@ -34,6 +39,7 @@ enum Character {
     Contessa,
 }
 
+#[derive(PartialEq, Eq, Hash)]
 enum Action {
     X,
     Income,
@@ -45,6 +51,7 @@ enum Action {
     Steal,
 }
 
+#[derive(PartialEq, Eq, Hash)]
 enum Effect {
     X,
     /// Take coins from bank u8 being the amount
@@ -56,6 +63,7 @@ enum Effect {
     TakeTwoFromOtherPlayer,
 }
 
+#[derive(PartialEq, Eq, Hash)]
 enum Counteraction {
     X,
     BlocksForeignAid,
@@ -146,32 +154,6 @@ impl Player {
 }
 
 impl Card {
-    fn random() -> Card {
-        let n = thread_rng().gen_range(0..=5);
-
-        match n {
-            0 => Card::duke(),
-            1 => Card::assassin(),
-            3 => Card::ambassador(),
-            4 => Card::captain(),
-            5 => Card::contessa(),
-
-            _ => Card::contessa(),
-        }
-    }
-
-    /// Draw a full hand (2 cards, random)
-    fn full_draw() -> Vec<Card> {
-        vec![
-            Card::income(),
-            Card::foreign_aid(),
-            Card::coup(),
-
-            Card::random(), 
-            Card::random(),
-        ]
-    }
-
     fn duke() -> Card {
         Card { 
             character: Character::Duke, 
@@ -241,8 +223,19 @@ impl Card {
 
 impl Game {
     fn new() -> Game {
+        let mut deck = HashMap::new();
+
+        // Insert cards into deck
+        deck.insert(Card::duke(), 3);
+        deck.insert(Card::assassin(), 3);
+        deck.insert(Card::ambassador(), 3);
+        deck.insert(Card::captain(), 3);
+        deck.insert(Card::contessa(), 3);
+
         Game { 
-            players: Vec::new()
+            players: Vec::new(),
+            deck,
+            discard_pile: Vec::new(),
         }
     }
 
@@ -254,12 +247,72 @@ impl Game {
             current_play: None,
         });
     }
+
+    /// Draw a full hand (2 cards from deck, random)
+    fn full_draw(&mut self) -> Vec<Card> {
+        vec![
+            Card::income(),
+            Card::foreign_aid(),
+            Card::coup(),
+
+            self.random(), 
+            self.random(),
+        ]
+    }
+
+    /// Draw a random card from deck
+    fn random(&mut self) -> Card {
+        if self.deck.is_empty() {
+            println!("Deck is empty flipping discard pile");
+
+            return Card::duke();
+        }
+
+        loop {
+            let n = thread_rng().gen_range(0..=5);
+
+            let card = match n {
+                0 => Card::duke(),
+                1 => Card::assassin(),
+                3 => Card::ambassador(),
+                4 => Card::captain(),
+                5 => Card::contessa(),
+
+                _ => Card::contessa(),
+            };
+
+            // If there is more of that card
+            if let Some(_) = self.deck.get(&card) {
+                let num = self.deck.get_mut(&card).unwrap();
+
+                *num -= 1;
+
+                if *num == 0 {
+                    self.deck.remove(&card).unwrap();
+                }
+
+                return card;
+            } else { // There is no more of the card
+                continue;
+            }
+        }
+    }
 }
 
 fn main() {
     let mut game = Game::new();
 
-    game.add_player(String::from("Nate"), Card::full_draw());
+    let names: Vec<&str> = vec!["Nate", "You", "Me", "Mitch", "Fitch"];
+let mut i = 0;
+    for name in names {
+        let cards = game.full_draw();
 
-    game.players[0].print_cards();
+        game.add_player(String::from("Nate"), cards);
+        
+        game.players[i].print_cards();
+
+        i += 1;
+    }
+    
+    game.players[0].play(0, None)
 }
