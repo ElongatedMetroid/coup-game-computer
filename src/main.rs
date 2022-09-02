@@ -12,13 +12,8 @@ struct Player {
     name: String,
     coins: u8,
     cards: Vec<Card>,
-    current_play: Option<Play>,
-}
-
-struct Play {
-    card: Card,
-    is_lie: bool,
-    target: Box<Player>,
+    did_lie: bool,
+    can_be_countered: bool,
 }
 
 #[derive(PartialEq, Eq, Hash)]
@@ -69,6 +64,13 @@ enum Counteraction {
     BlocksForeignAid,
     BlocksStealing,
     BlocksAssasination,
+}
+
+enum PlayKind {
+    /// the play is an action
+    Action, 
+    /// the play is a counteraction
+    Counteraction,
 }
 
 impl fmt::Display for Character {
@@ -150,6 +152,59 @@ impl Player {
             println!("{}\n", card);
         }
         println!("----- Your Hand -----");
+    }
+    fn play(&mut self, card: &Card, play_kind: PlayKind, target: Option<Player>) {
+        self.can_be_countered = match play_kind {
+            PlayKind::Action => {
+                match card.character {
+                    Character::X => {
+                        match card.action {
+                            Action::Income => {
+                                self.coins += 1;
+                                return;
+                            }
+                            Action::ForeignAid => {
+                                true
+                            }
+                            Action::Coup => {
+                                false
+                            }
+
+                            _ => panic!("Invalid card")
+                        }
+                    }
+                    Character::Duke => {
+                        false
+                    }
+                    Character::Assassin => {
+                        true
+                    }
+                    Character::Ambassador => {
+                        false
+                    }
+                    Character::Captain => {
+                        true
+                    }
+                    Character::Contessa => {
+                        false
+                    }
+                }
+            }
+
+            PlayKind::Counteraction => {
+                false
+            }
+        };
+
+        // Check if the player lied
+        for has_card in &self.cards {
+            if has_card == card {
+                self.did_lie = false;
+                return;
+            }
+        }
+
+        self.did_lie = true;
     }
 }
 
@@ -244,7 +299,8 @@ impl Game {
             name,
             coins: 0,
             cards,
-            current_play: None,
+            did_lie: false,
+            can_be_countered: false,
         });
     }
 
@@ -297,6 +353,17 @@ impl Game {
             }
         }
     }
+
+    /// Returns true if the accusation was true
+    fn accuse(&mut self, who: Player) -> bool {
+        if who.did_lie {
+            println!("{} was lying, they must now discard one card", who.name);
+            true
+        } else {
+            println!("{} was not lying, you must now discard one card", who.name);
+            false
+        }
+    }
 }
 
 fn main() {
@@ -307,12 +374,12 @@ let mut i = 0;
     for name in names {
         let cards = game.full_draw();
 
-        game.add_player(String::from("Nate"), cards);
+        game.add_player(String::from(name), cards);
         
         game.players[i].print_cards();
 
         i += 1;
     }
-    
-    game.players[0].play(0, None)
+
+    game.players[0].play(&Card::income(), PlayKind::Action, None);
 }
